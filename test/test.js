@@ -14,8 +14,8 @@ let miniServerPromise = MiniServer.load('testApp', 'email', {
     attachRoot: process.cwd(),
     from: 'zpli_buns@126.com',
     auth: {
-        user: 'zpli_buns',
-        pass: 'nmvbguxhuyvqohvd'
+        user: '账号',
+        pass: '密码'
     },
     host: 'smtp.126.com',
     port: 465,
