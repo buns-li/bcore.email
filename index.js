@@ -20,6 +20,8 @@ const engineMap = {
     '.markdown': 'markdown'
 }
 
+const confSymbol = Symbol['email#conf']
+
 bcore.on('email', {
     //发送回邮件的附件根目录
     attachRoot: process.cwd(),
@@ -72,17 +74,15 @@ bcore.on('email', {
         return opts
     }
 
-
-
     this.__init = function(options) {
 
-        options.attachRoot && (this.attachRoot = path.normalize(options.attachRoot))
+        let conf = this[confSymbol] = {}
 
-        options.from && (this.from = options.from)
+        options.attachRoot && (conf.attachRoot = path.normalize(options.attachRoot))
 
-        this.options = options
+        options.from && (conf.from = options.from)
 
-        let transporter = nodemailer.createTransport({
+        conf.transport = nodemailer.createTransport({
             host: options.host,
             port: options.port,
             secure: !!options.secure, //强制转换成Boolean类型,
@@ -91,112 +91,119 @@ bcore.on('email', {
             debug: !!options.debug,
             logger: options.logger
         })
+    }
 
-        /**
-         * 发送普通文本
-         *
-         * @param {String} subject 邮件主题
-         * @param {String|Object} reciever 邮件的接收方
-         *  当 `reciever` 为字符串的时候表示的是`to`邮件显示的接收方
-         *  当 `reciever` 为对象的时候表示的是如下:
-         *  {
-         *    "to":"邮件接收方",
-         *    "cc":"邮件抄送方",
-         *    "bcc":"邮件密送方"
-         *  }
-         * @param {String} text 邮件正文文本
-         * @param {Array|Object} 邮件附件
-         *
-         * @return {Promise<any>}
-         */
-        this.sendPlain = function(subject, reciever, text, attachments) {
 
-            let args = slice.call(arguments)
+    /**
+     * 发送普通文本
+     *
+     * @param {String} subject 邮件主题
+     * @param {String|Object} reciever 邮件的接收方
+     *  当 `reciever` 为字符串的时候表示的是`to`邮件显示的接收方
+     *  当 `reciever` 为对象的时候表示的是如下:
+     *  {
+     *    "to":"邮件接收方",
+     *    "cc":"邮件抄送方",
+     *    "bcc":"邮件密送方"
+     *  }
+     * @param {String} text 邮件正文文本
+     * @param {Array|Object} 邮件附件
+     *
+     * @return {Promise<any>}
+     */
+    this.sendPlain = function(subject, reciever, text, attachments) {
 
-            args.unshift('plain')
+        let conf = this[confSymbol]
 
-            let options = createMailOptions(...args)
+        let args = slice.call(arguments)
 
-            options.from = this.from
+        args.unshift('plain')
 
-            attachments && !Array.isArray(attachments) && (attachments = [attachments])
+        let options = createMailOptions(...args)
 
-            attachments && attachments.length && (options.attachments = attachments)
+        options.from = conf.from
 
-            return transporter.sendMail(options)
-        }
+        attachments && !Array.isArray(attachments) && (attachments = [attachments])
 
-        /**
-         * 发送html内容
-         *
-         * @param {String} subject 邮件主题
-         * @param {String|Object} reciever 邮件的接收方
-         *  当 `reciever` 为字符串的时候表示的是`to`邮件显示的接收方
-         *  当 `reciever` 为对象的时候表示的是如下:
-         *  {
-         *    "to":"邮件接收方",
-         *    "cc":"邮件抄送方",
-         *    "bcc":"邮件密送方"
-         *  }
-         * @param {String} html 邮件的html内容
-         * @param {Array|Object} 邮件附件
-         *
-         * @return {Promise<any>}
-         */
-        this.sendHtml = function(subject, reciever, htmlStr, attachments) {
+        attachments && attachments.length && (options.attachments = attachments)
 
-            let args = slice.call(arguments)
+        return conf.transport.sendMail(options)
+    }
 
-            args.unshift('html')
+    /**
+     * 发送html内容
+     *
+     * @param {String} subject 邮件主题
+     * @param {String|Object} reciever 邮件的接收方
+     *  当 `reciever` 为字符串的时候表示的是`to`邮件显示的接收方
+     *  当 `reciever` 为对象的时候表示的是如下:
+     *  {
+     *    "to":"邮件接收方",
+     *    "cc":"邮件抄送方",
+     *    "bcc":"邮件密送方"
+     *  }
+     * @param {String} html 邮件的html内容
+     * @param {Array|Object} 邮件附件
+     *
+     * @return {Promise<any>}
+     */
+    this.sendHtml = function(subject, reciever, htmlStr, attachments) {
 
-            let options = createMailOptions(...args)
+        let conf = this[confSymbol]
 
-            options.from = this.from
+        let args = slice.call(arguments)
 
-            attachments && !Array.isArray(attachments) && (attachments = [attachments])
+        args.unshift('html')
 
-            attachments && attachments.length && (options.attachments = attachments)
+        let options = createMailOptions(...args)
 
-            return transporter.sendMail(options)
-        }
+        options.from = conf.from
 
-        /**
-         * 发送带模板引擎处理的html文件内容
-         *
-         * @param {String} subject 邮件主题
-         * @param {String|Object} reciever 邮件的接收方
-         *  当 `reciever` 为字符串的时候表示的是`to`邮件显示的接收方
-         *  当 `reciever` 为对象的时候表示的是如下:
-         *  {
-         *    "to":"邮件接收方",
-         *    "cc":"邮件抄送方",
-         *    "bcc":"邮件密送方"
-         *  }
-         * @param {String} fileUrl 文件地址
-         * @param {Object} tplContext 模板上下文数据或者是相关配置
-         * @param {Array|Object} 邮件附件
-         *
-         * @return {Promise<any>}
-         */
-        this.sendTplHtml = async function(subject, reciever, fileUrl, tplContext, attachments) {
+        attachments && !Array.isArray(attachments) && (attachments = [attachments])
 
-            let extname = path.extname(fileUrl)
+        attachments && attachments.length && (options.attachments = attachments)
 
-            let renderer = require('./lib/', engineMap[extname] || 'markdown')
+        return conf.transport.sendMail(options)
+    }
 
-            let parsedHtml = await renderer.render(fileUrl, tplContext)
+    /**
+     * 发送带模板引擎处理的html文件内容
+     *
+     * @param {String} subject 邮件主题
+     * @param {String|Object} reciever 邮件的接收方
+     *  当 `reciever` 为字符串的时候表示的是`to`邮件显示的接收方
+     *  当 `reciever` 为对象的时候表示的是如下:
+     *  {
+     *    "to":"邮件接收方",
+     *    "cc":"邮件抄送方",
+     *    "bcc":"邮件密送方"
+     *  }
+     * @param {String} fileUrl 文件地址
+     * @param {Object} tplContext 模板上下文数据或者是相关配置
+     * @param {Array|Object} 邮件附件
+     *
+     * @return {Promise<any>}
+     */
+    this.sendTplHtml = async function(subject, reciever, fileUrl, tplContext, attachments) {
 
-            let args = ['html', subject, reciever, parsedHtml, attachments]
+        let conf = this[confSymbol]
 
-            let options = createMailOptions(...args)
+        let extname = path.extname(fileUrl)
 
-            options.from = this.from
+        let renderer = require('./lib/' + engineMap[extname] || 'markdown')
 
-            attachments && !Array.isArray(attachments) && (attachments = [attachments])
+        let parsedHtml = await renderer.render(fileUrl, tplContext)
 
-            attachments && attachments.length && (options.attachments = attachments)
+        let args = ['html', subject, reciever, parsedHtml, attachments]
 
-            return transporter.sendMail(options)
-        }
+        let options = createMailOptions(...args)
+
+        options.from = conf.from
+
+        attachments && !Array.isArray(attachments) && (attachments = [attachments])
+
+        attachments && attachments.length && (options.attachments = attachments)
+
+        return conf.transport.sendMail(options)
     }
 })
