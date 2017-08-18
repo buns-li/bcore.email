@@ -36,5 +36,9 @@
         "nunjucks": "^3.0.1",
         "pug": "^2.0.0-rc.3",
         "handlebars": "^5.0.0-alpha.1"
+    },
+    "devDependencies": {
+        "mocha": "^3.4.2",
+        "should": "^11.2.1"
     }
 }
